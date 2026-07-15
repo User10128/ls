@@ -658,6 +658,55 @@ function addGameCoins(amount) {
     saveState();
 }
 
+function triggerNextRound(container, isActiveMode, currentMode, ...args) {
+    if (!isActiveMode) {
+        // Keep playing the same game
+        switch(currentMode) {
+            case 'matching': startMatchingGame(container, false); break;
+            case 'test': startTestGame(container, false); break;
+            case 'building': startBuildingGame(container, false); break;
+            // airplane & crossy are handled internally for normal mode
+            case 'climb': startClimbUpGame(container, false, args[0], args[1]); break;
+            case 'typing': startTypingGame(container, false); break;
+            case 'picture': startPictureGame(container, false); break;
+        }
+    } else {
+        // Active Mode: Pick a new random game!
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        
+        const games = ['matching', 'test', 'building', 'airplane', 'crossy', 'climb', 'typing', 'picture'];
+        
+        // Prevent picking the exact same game twice in a row
+        let nextMode = currentMode;
+        while (nextMode === currentMode) {
+            nextMode = games[Math.floor(Math.random() * games.length)];
+        }
+        
+        currentGameMode = nextMode;
+        
+        const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
+        document.getElementById('game-title').innerText = titles[nextMode] || 'Active Mode';
+        
+        container.style.background = '';
+        container.style.transition = '';
+        container.innerHTML = '';
+        
+        switch(nextMode) {
+            case 'matching': startMatchingGame(container, true); break;
+            case 'test': startTestGame(container, true); break;
+            case 'building': startBuildingGame(container, true); break;
+            case 'airplane': startAirplaneGame(container, true); break;
+            case 'crossy': startCrossyGame(container, true); break;
+            case 'climb': startClimbUpGame(container, true); break; // Resets climb streak
+            case 'typing': startTypingGame(container, true); break;
+            case 'picture': startPictureGame(container, true); break;
+        }
+    }
+}
+
 function initGame(mode) {
     const wordsRequired = { 'matching': 6, 'test': 4, 'building': 1, 'airplane': 4, 'crossy': 4, 'climb': 3, 'typing': 1, 'picture': 4, 'active': 4 };
     
@@ -776,7 +825,7 @@ function startMatchingGame(container, isActiveMode) {
                         flippedCards = [];
                         lockBoard = false;
                         if(matchesFound === words.length) {
-                            setTimeout(() => startMatchingGame(container, isActiveMode), 500); // Next round
+                            setTimeout(() => triggerNextRound(container, isActiveMode, 'matching'), 500); // Next round
                         }
                     }, 800);
                 } else {
@@ -828,7 +877,7 @@ function startTestGame(container, isActiveMode) {
             recordAnswer(targetId, false);
             showToast("Oops! Incorrect.");
         }
-        setTimeout(() => startTestGame(container, activeMode), 500);
+        setTimeout(() => triggerNextRound(container, activeMode, 'test'), 500);
     };
 }
 
@@ -892,7 +941,7 @@ function startBuildingGame(container, isActiveMode) {
                 recordAnswer(targetWord.id, true);
                 addGameCoins(15);
                 showToast("Perfect Spelling! +15 Coins");
-                setTimeout(() => startBuildingGame(container, isActiveMode), 1000);
+                setTimeout(() => triggerNextRound(container, isActiveMode, 'building'), 1000);
             } else {
                 recordAnswer(targetWord.id, false);
                 showToast("Not quite right! Try again.");
@@ -1057,11 +1106,20 @@ function startAirplaneGame(container, isActiveMode) {
                     addGameCoins(20);
                     showToast("+20 Coins!");
                     clouds.splice(i, 1);
-                    resetLevel();
+                    if (isActiveMode) {
+                        triggerNextRound(container, true, 'airplane');
+                        return; // exit loop
+                    } else {
+                        resetLevel();
+                    }
                 } else {
                     recordAnswer(targetWord.id, false);
                     isGameOver = true;
-                    setTimeout(() => { isGameOver = false; resetLevel(); plane.y = canvas.height/2; }, 1500);
+                    setTimeout(() => { 
+                        isGameOver = false; 
+                        if (isActiveMode) triggerNextRound(container, true, 'airplane');
+                        else { resetLevel(); plane.y = canvas.height/2; }
+                    }, 1500);
                 }
             } else if (c.x + c.w < 0) {
                 clouds.splice(i, 1); // remove off screen
@@ -1161,12 +1219,17 @@ function startCrossyGame(container, isActiveMode) {
                 recordAnswer(targetWord.id, true);
                 addGameCoins(25);
                 showToast("+25 Coins! Safe!");
-                resetLevel();
+                if(isActiveMode) triggerNextRound(container, true, 'crossy');
+                else resetLevel();
             } else {
                 recordAnswer(targetWord.id, false);
                 isGameOver = true;
                 showToast("Wrong Word!");
-                setTimeout(() => { isGameOver = false; resetLevel(); }, 1500);
+                setTimeout(() => { 
+                    isGameOver = false; 
+                    if(isActiveMode) triggerNextRound(container, true, 'crossy');
+                    else resetLevel(); 
+                }, 1500);
             }
         }
     };
@@ -1261,7 +1324,11 @@ function startCrossyGame(container, isActiveMode) {
                 if (player.col < obs.col + obs.w && player.col + 1 > obs.col) {
                     isGameOver = true;
                     showToast("Watch out for traffic!");
-                    setTimeout(() => { isGameOver = false; resetLevel(); }, 1500);
+                    setTimeout(() => { 
+                        isGameOver = false; 
+                        if(isActiveMode) triggerNextRound(container, true, 'crossy');
+                        else resetLevel(); 
+                    }, 1500);
                 }
             }
         });
@@ -1341,14 +1408,14 @@ function startClimbUpGame(container, isActiveMode, streak = 0, altitude = 0) {
             recordAnswer(targetId, true);
             addGameCoins(coinReward);
             showToast(`Up we go! +${coinReward} Coins`);
-            setTimeout(() => startClimbUpGame(container, activeMode, streak + 1, altitude + 1), 600);
+            setTimeout(() => triggerNextRound(container, activeMode, 'climb', streak + 1, altitude + 1), 600);
         } else {
             climber.classList.add('animate-spin');
             climber.style.transform = 'translateY(800px) scale(0.5)';
             climber.style.opacity = '0';
             recordAnswer(targetId, false);
             showToast("Fell down! Streak lost.");
-            setTimeout(() => startClimbUpGame(container, activeMode, 0, 0), 1000);
+            setTimeout(() => triggerNextRound(container, activeMode, 'climb', 0, 0), 1000);
         }
     };
 }
@@ -1387,7 +1454,7 @@ function startTypingGame(container, isActiveMode) {
             addGameCoins(20);
             showToast("Fast Fingers! +20 Coins");
             fallingWord.style.transform = `translate(-50%, ${yPos}px) scale(0)`;
-            setTimeout(() => startTypingGame(container, isActiveMode), 600);
+            setTimeout(() => triggerNextRound(container, isActiveMode, 'typing'), 600);
         }
     };
 
@@ -1407,7 +1474,7 @@ function startTypingGame(container, isActiveMode) {
             input.disabled = true;
             fallingWord.style.backgroundColor = '#ef4444'; // turn red
             fallingWord.style.color = 'white';
-            setTimeout(() => startTypingGame(container, isActiveMode), 1500);
+            setTimeout(() => triggerNextRound(container, isActiveMode, 'typing'), 1500);
             return;
         }
         animationFrameId = requestAnimationFrame(fallLoop);
@@ -1456,7 +1523,7 @@ function startPictureGame(container, isActiveMode) {
             recordAnswer(targetId, false);
             showToast("Oops! Incorrect.");
         }
-        setTimeout(() => startPictureGame(container, activeMode), 700);
+        setTimeout(() => triggerNextRound(container, activeMode, 'picture'), 700);
     };
 }
 
