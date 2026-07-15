@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LearnSpanish - Fun Study Games</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #7dd3fc; /* sky-300 */
+            overflow: hidden; /* Prevent body scroll, manage internally */
+        }
+
+        /* Cartoony Button Styles */
+        .btn-cartoon {
+            transition: all 0.1s ease;
+            border-bottom-width: 6px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .btn-cartoon:active {
+            border-bottom-width: 0px;
+            transform: translateY(6px);
+        }
+        
+        .btn-blue { background-color: #3b82f6; border-color: #1d4ed8; color: white; }
+        .btn-green { background-color: #22c55e; border-color: #15803d; color: white; }
+        .btn-yellow { background-color: #eab308; border-color: #a16207; color: white; }
+        .btn-red { background-color: #ef4444; border-color: #b91c1c; color: white; }
+        .btn-purple { background-color: #a855f7; border-color: #7e22ce; color: white; }
+        
+        /* Custom Scrollbar for inner areas */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: #bae6fd; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 10px; border: 3px solid #bae6fd; }
+
+        /* Card Flip Animation */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .transition-transform { transition: transform 0.5s; }
+
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .toast {
+            background: white;
+            border: 4px solid #3b82f6;
+            border-radius: 999px;
+            padding: 10px 30px;
+            font-weight: bold;
+            color: #1e3a8a;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, fadeOut 0.5s ease 2s forwards;
+            margin-bottom: 10px;
+        }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes fadeOut { 0% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
+
+        /* Game Canvas Container */
+        #game-canvas-container {
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 4/3;
+            margin: 0 auto;
+            background: #87CEEB;
+            border: 8px solid white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        .game-ui-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen text-slate-800">
+
+    <div id="toast-container"></div>
+
+    <!-- Navigation Sidebar / Bottom bar -->
+    <nav class="bg-white md:w-64 w-full flex md:flex-col flex-row justify-between md:justify-start shadow-xl z-20 order-last md:order-first relative">
+        <div class="hidden md:flex p-6 items-center justify-center border-b-4 border-slate-100">
+            <h1 class="text-3xl font-extrabold text-blue-500 tracking-wider">
+                <i class="fa-solid fa-language mr-2 text-yellow-400"></i>Learn<br>Spanish
+            </h1>
+        </div>
+        <div class="flex md:flex-col flex-row w-full p-2 md:p-4 gap-2 overflow-x-auto md:overflow-visible">
+            <button onclick="switchTab('games')" id="tab-games" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-500 transition-colors">
+                <i class="fa-solid fa-gamepad text-2xl"></i> <span class="hidden md:inline">Games</span>
+            </button>
+            <button onclick="switchTab('words')" id="tab-words" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-500 transition-colors">
+                <i class="fa-solid fa-book text-2xl"></i> <span class="hidden md:inline">Words/Phrases</span>
+            </button>
+            <button onclick="switchTab('stats')" id="tab-stats" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-500 transition-colors">
+                <i class="fa-solid fa-chart-pie text-2xl"></i> <span class="hidden md:inline">Learning Stats</span>
+            </button>
+            <button onclick="switchTab('cards')" id="tab-cards" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-500 transition-colors">
+                <i class="fa-solid fa-layer-group text-2xl"></i> <span class="hidden md:inline">Cards Shop</span>
+            </button>
+            <button onclick="switchTab('rewards')" id="tab-rewards" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-yellow-500 transition-colors">
+                <i class="fa-solid fa-coins text-2xl text-yellow-400"></i> <span class="hidden md:inline">Rewards</span>
+            </button>
+        </div>
+        <div class="hidden md:block mt-auto p-6 bg-slate-50 text-center rounded-tr-3xl">
+            <p class="font-bold text-slate-500 mb-1">Total Coins</p>
+            <div class="text-3xl font-black text-yellow-500 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-star"></i> <span id="nav-coin-display">0</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 relative h-full overflow-hidden bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==')]">
+        
+        <!-- View Container -->
+        <div id="view-container" class="h-full w-full p-4 md:p-8 overflow-y-auto">
+            <!-- Content injected here by JS -->
+        </div>
+
+        <!-- Fullscreen Game Overlay -->
+        <div id="game-overlay" class="hidden absolute inset-0 bg-sky-100 z-30 flex flex-col items-center justify-center p-4">
+            <div class="w-full max-w-4xl bg-white rounded-3xl shadow-2xl border-8 border-white p-6 relative flex flex-col h-full max-h-[90vh]">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="game-title" class="text-3xl font-black text-blue-600 uppercase">Game Title</h2>
+                    <div class="flex gap-4">
+                        <div class="bg-yellow-100 text-yellow-600 px-4 py-2 rounded-full font-bold text-xl border-2 border-yellow-400">
+                            <i class="fa-solid fa-coins"></i> <span id="game-session-coins">0</span>
+                        </div>
+                        <button onclick="quitGame()" class="btn-cartoon btn-red px-4 py-2 rounded-xl">
+                            <i class="fa-solid fa-xmark"></i> Quit
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Dynamic Game Area -->
+                <div id="game-area" class="flex-1 relative flex items-center justify-center bg-slate-50 rounded-2xl border-4 border-slate-200 overflow-hidden">
+                    <!-- Specific game content injected here -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+<script>
+/* ==========================================
+   STATE MANAGEMENT & DATA
+   ========================================== */
+let state = {
+    coins: 500,
+    words: [
+        { id: 1, es: "Hola", en: "Hello", status: "learning", correct: 0, total: 0 },
+        { id: 2, es: "Adios", en: "Goodbye", status: "learning", correct: 0, total: 0 },
+        { id: 3, es: "Por favor", en: "Please", status: "learning", correct: 0, total: 0 },
+        { id: 4, es: "Gracias", en: "Thank you", status: "learning", correct: 0, total: 0 },
+        { id: 5, es: "Gato", en: "Cat", status: "learning", correct: 0, total: 0 },
+        { id: 6, es: "Perro", en: "Dog", status: "learning", correct: 0, total: 0 },
+        { id: 7, es: "Agua", en: "Water", status: "learning", correct: 0, total: 0 },
+        { id: 8, es: "Comida", en: "Food", status: "mastered", correct: 10, total: 10 },
+        { id: 9, es: "Libro", en: "Book", status: "learning", correct: 0, total: 0 },
+        { id: 10, es: "Casa", en: "House", status: "learning", correct: 0, total: 0 }
+    ],
+    ownedCards: [],
+    activeTab: 'games'
+};
+
+// Generate 50 Cards
+const shopCards = [];
+const cardTiers = ["Paper", "Wood", "Plastic", "Metal", "Carbon", "Titanium", "Quantum", "Cosmic"];
+const cardBases = ["Airplane", "Glider", "Kite", "Helicopter", "Jet", "Rocket"];
+for(let i=0; i<50; i++) {
+    let name = "";
+    if(i===0) name = "Paper Airplane";
+    else if(i===49) name = "The I.S.S.";
+    else {
+        let tier = cardTiers[Math.floor(i / 7) % cardTiers.length];
+        let base = cardBases[i % cardBases.length];
+        name = `${tier} ${base} Mk${(i%5)+1}`;
+    }
+    shopCards.push({
+        id: i,
+        name: name,
+        price: (i + 1) * 50,
+        speed: 10 + (i * 2),
+        icon: i > 40 ? 'fa-rocket' : i > 20 ? 'fa-plane' : 'fa-paper-plane'
+    });
+}
+
+// Load from LocalStorage
+function loadState() {
+    const saved = localStorage.getItem('learnSpanishState');
+    if (saved) {
+        let parsed = JSON.parse(saved);
+        state.coins = parsed.coins !== undefined ? parsed.coins : state.coins;
+        state.words = parsed.words || state.words;
+        state.ownedCards = parsed.ownedCards || [];
+    }
+}
+
+function saveState() {
+    localStorage.setItem('learnSpanishState', JSON.stringify({
+        coins: state.coins,
+        words: state.words,
+        ownedCards: state.ownedCards
+    }));
+    updateGlobalCoinDisplay();
+}
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+        if(container.contains(toast)) container.removeChild(toast);
+    }, 2500);
+}
+
+function updateGlobalCoinDisplay() {
+    document.getElementById('nav-coin-display').innerText = state.coins;
+    let rewardsDisplay = document.getElementById('rewards-big-coin');
+    if(rewardsDisplay) rewardsDisplay.innerText = state.coins;
+}
+
+/* ==========================================
+   NAVIGATION & RENDERING
+   ========================================== */
+function switchTab(tabId) {
+    state.activeTab = tabId;
+    
+    // Update nav styling
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-50', 'text-blue-600', 'border-r-4', 'border-blue-500');
+        if(btn.id === `tab-${tabId}`) {
+            btn.classList.add('bg-blue-50', 'text-blue-600', 'border-r-4', 'border-blue-500');
+        }
+    });
+
+    const container = document.getElementById('view-container');
+    container.innerHTML = ''; // clear
+    container.className = 'h-full w-full p-4 md:p-8 overflow-y-auto fade-in'; // reset class for animation
+
+    switch(tabId) {
+        case 'words': renderWordsTab(container); break;
+        case 'games': renderGamesTab(container); break;
+        case 'stats': renderStatsTab(container); break;
+        case 'cards': renderCardsTab(container); break;
+        case 'rewards': renderRewardsTab(container); break;
+    }
+}
+
+// --- TABS RENDERING ---
+
+function renderGamesTab(container) {
+    const html = `
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-4xl font-black text-white mb-2 drop-shadow-md text-center">Choose a Game!</h2>
+            <p class="text-white text-center text-xl mb-8 font-semibold drop-shadow">Earn coins by practicing your words.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Matching -->
+                <div onclick="initGame('matching')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-blue-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-blue-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-clone text-4xl text-blue-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Matching</h3>
+                    <p class="text-slate-500 font-medium">Flip cards to match Spanish words with English meanings.</p>
+                </div>
+
+                <!-- Test -->
+                <div onclick="initGame('test')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-purple-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-purple-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-list-check text-4xl text-purple-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Quiz Test</h3>
+                    <p class="text-slate-500 font-medium">Classic multiple choice test. Pick the right translation.</p>
+                </div>
+
+                <!-- Building -->
+                <div onclick="initGame('building')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-yellow-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-yellow-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-hammer text-4xl text-yellow-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Building</h3>
+                    <p class="text-slate-500 font-medium">Construct the Spanish word from scrambled letters.</p>
+                </div>
+
+                <!-- Airplane -->
+                <div onclick="initGame('airplane')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-cyan-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-cyan-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-plane text-4xl text-cyan-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Airplane</h3>
+                    <p class="text-slate-500 font-medium">Fly and catch the correct translation clouds!</p>
+                </div>
+
+                <!-- Crossy Road -->
+                <div onclick="initGame('crossy')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-green-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-green-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-frog text-4xl text-green-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Crossy Road</h3>
+                    <p class="text-slate-500 font-medium">Dodge traffic to reach the correct Spanish word.</p>
+                </div>
+
+                <!-- Active (Mix) -->
+                <div onclick="initGame('active')" class="bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 shadow-xl border-b-8 border-red-700 cursor-pointer hover:-translate-y-2 transition-transform text-white">
+                    <div class="bg-white/20 w-20 h-20 rounded-2xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-bolt text-4xl text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">ACTIVE MODE</h3>
+                    <p class="text-red-100 font-medium">Random games. 90% focus on 'Currently Learning' words for max efficiency!</p>
+                </div>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function renderWordsTab(container) {
+    let wordListHTML = state.words.map(w => `
+        <div class="flex items-center justify-between bg-slate-50 p-4 rounded-xl border-2 border-slate-100 mb-3 hover:border-blue-300 transition-colors">
+            <div class="flex-1 grid grid-cols-2 gap-4">
+                <span class="font-bold text-lg text-slate-700">${w.es}</span>
+                <span class="text-slate-500">${w.en}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <select onchange="updateWordStatus(${w.id}, this.value)" class="bg-white border-2 border-slate-200 rounded-lg px-3 py-1 font-bold text-sm outline-none cursor-pointer ${w.status === 'learning' ? 'text-blue-500' : 'text-green-500'}">
+                    <option value="learning" ${w.status === 'learning' ? 'selected' : ''}>Learning</option>
+                    <option value="mastered" ${w.status === 'mastered' ? 'selected' : ''}>Mastered</option>
+                </select>
+                <button onclick="deleteWord(${w.id})" class="text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        </div>
+    `).join('');
+
+    const html = `
+        <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl p-6 md:p-8">
+            <h2 class="text-3xl font-black text-slate-800 mb-6 border-b-4 border-slate-100 pb-4">
+                <i class="fa-solid fa-book-open text-blue-500 mr-2"></i> Manage Dictionary
+            </h2>
+            
+            <div class="bg-blue-50 p-6 rounded-2xl mb-8 border-2 border-blue-100">
+                <h3 class="font-bold text-blue-800 mb-4 text-xl">Add New Word/Phrase</h3>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <input type="text" id="new-es" placeholder="Spanish (e.g. Manzana)" class="flex-1 px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none font-bold text-slate-700">
+                    <input type="text" id="new-en" placeholder="English (e.g. Apple)" class="flex-1 px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none font-bold text-slate-700">
+                    <button onclick="addWord()" class="btn-cartoon btn-blue px-8 py-3 rounded-xl text-lg"><i class="fa-solid fa-plus mr-2"></i>Add</button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-700 text-xl">Your Words (${state.words.length})</h3>
+            </div>
+            
+            <div class="max-h-[50vh] overflow-y-auto pr-2">
+                ${wordListHTML || '<p class="text-center text-slate-400 font-bold py-8">No words added yet. Start building your dictionary!</p>'}
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function renderStatsTab(container) {
+    let sortedWords = [...state.words].filter(w => w.total > 0).sort((a, b) => (b.correct/b.total) - (a.correct/a.total));
+    let best = sortedWords.slice(0, 5);
+    let worst = [...sortedWords].reverse().slice(0, 5);
+
+    const renderList = (list) => list.map(w => {
+        let percentage = Math.round((w.correct / w.total) * 100);
+        let colorClass = percentage > 80 ? 'text-green-500' : percentage > 50 ? 'text-yellow-500' : 'text-red-500';
+        let barColor = percentage > 80 ? 'bg-green-400' : percentage > 50 ? 'bg-yellow-400' : 'bg-red-400';
+        return `
+            <div class="mb-4">
+                <div class="flex justify-between font-bold mb-1">
+                    <span>${w.es} <span class="text-slate-400 text-sm font-normal">(${w.en})</span></span>
+                    <span class="${colorClass}">${percentage}%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-3">
+                    <div class="${barColor} h-3 rounded-full" style="width: ${percentage}%"></div>
+                </div>
+                <div class="text-xs text-slate-400 text-right mt-1">${w.correct} correct / ${w.total} tries</div>
+            </div>
+        `;
+    }).join('');
+
+    const html = `
+        <div class="max-w-4xl mx-auto">
+             <h2 class="text-4xl font-black text-white mb-6 drop-shadow-md text-center">Learning Stats</h2>
+             
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-3xl p-6 shadow-xl border-t-8 border-green-400">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-yellow-500"></i> Best Words
+                    </h3>
+                    ${best.length > 0 ? renderList(best) : '<p class="text-slate-400">Play games to gather data!</p>'}
+                </div>
+
+                <div class="bg-white rounded-3xl p-6 shadow-xl border-t-8 border-red-400">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-dumbbell text-slate-600"></i> Needs Practice
+                    </h3>
+                    ${worst.length > 0 ? renderList(worst) : '<p class="text-slate-400">Play games to gather data!</p>'}
+                </div>
+             </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function renderCardsTab(container) {
+    let cardsHtml = shopCards.map(c => {
+        let isOwned = state.ownedCards.includes(c.id);
+        return `
+            <div class="bg-white rounded-2xl p-4 shadow-lg border-2 ${isOwned ? 'border-green-400 opacity-70' : 'border-slate-200'} flex flex-col relative overflow-hidden group">
+                ${isOwned ? '<div class="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full"><i class="fa-solid fa-check"></i> Owned</div>' : ''}
+                <div class="h-24 bg-slate-100 rounded-xl mb-4 flex items-center justify-center text-5xl text-slate-300 ${isOwned ? 'text-green-200' : 'group-hover:text-blue-400 transition-colors'}">
+                    <i class="fa-solid ${c.icon}"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 text-center mb-1 leading-tight">${c.name}</h4>
+                <p class="text-xs text-slate-400 text-center mb-4">Speed Level: ${c.speed}</p>
+                <div class="mt-auto">
+                    ${isOwned ? 
+                        `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-2 rounded-lg cursor-not-allowed">Purchased</button>` :
+                        `<button onclick="buyCard(${c.id}, ${c.price})" class="btn-cartoon btn-yellow w-full py-2 rounded-lg text-sm">
+                            <i class="fa-solid fa-coins"></i> ${c.price}
+                        </button>`
+                    }
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const html = `
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-4xl font-black text-white drop-shadow-md">Card Shop</h2>
+                    <p class="text-blue-800 font-bold mt-1">Collect all 50 vehicles! Higher speed = bragging rights.</p>
+                </div>
+                <div class="bg-yellow-400 text-yellow-900 px-6 py-2 rounded-full font-black text-2xl shadow-lg border-4 border-yellow-300 hidden md:block">
+                    <i class="fa-solid fa-coins"></i> ${state.coins}
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 pb-20">
+                ${cardsHtml}
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function renderRewardsTab(container) {
+    let ownedCount = state.ownedCards.length;
+    let totalCards = shopCards.length;
+    let percentage = Math.round((ownedCount/totalCards)*100);
+
+    const html = `
+        <div class="h-full flex flex-col items-center justify-center max-w-2xl mx-auto text-center">
+            <div class="bg-white w-full rounded-3xl shadow-2xl p-10 border-b-8 border-yellow-200 relative overflow-hidden">
+                <div class="absolute -top-10 -left-10 text-9xl text-yellow-50 opacity-50"><i class="fa-solid fa-coins"></i></div>
+                <div class="absolute -bottom-10 -right-10 text-9xl text-yellow-50 opacity-50"><i class="fa-solid fa-coins"></i></div>
+                
+                <h2 class="text-3xl font-black text-slate-400 uppercase tracking-widest mb-4">Your Treasury</h2>
+                
+                <div class="text-8xl font-black text-yellow-400 drop-shadow-lg mb-8 flex justify-center items-center gap-4">
+                    <i class="fa-solid fa-coins animate-bounce"></i> 
+                    <span id="rewards-big-coin">${state.coins}</span>
+                </div>
+                
+                <p class="text-xl text-slate-500 font-bold mb-8">Play games to earn more coins and buy faster cards!</p>
+
+                <div class="bg-slate-50 rounded-2xl p-6 border-2 border-slate-100">
+                    <h3 class="text-lg font-bold text-slate-700 mb-2">Card Collection Progress</h3>
+                    <div class="flex justify-between font-bold text-sm text-slate-500 mb-2">
+                        <span>${ownedCount} / ${totalCards} Cards</span>
+                        <span>${percentage}%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-4">
+                        <div class="bg-blue-500 h-4 rounded-full transition-all duration-1000" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+/* ==========================================
+   CRUD FOR WORDS
+   ========================================== */
+function addWord() {
+    const esInput = document.getElementById('new-es');
+    const enInput = document.getElementById('new-en');
+    const es = esInput.value.trim();
+    const en = enInput.value.trim();
+
+    if(!es || !en) {
+        showToast("Please enter both Spanish and English!");
+        return;
+    }
+
+    const newId = state.words.length > 0 ? Math.max(...state.words.map(w=>w.id)) + 1 : 1;
+    state.words.unshift({ id: newId, es, en, status: 'learning', correct: 0, total: 0 });
+    
+    esInput.value = '';
+    enInput.value = '';
+    
+    saveState();
+    if(state.activeTab === 'words') switchTab('words');
+    showToast("Word added!");
+}
+
+function deleteWord(id) {
+    state.words = state.words.filter(w => w.id !== id);
+    saveState();
+    switchTab('words');
+    showToast("Word deleted!");
+}
+
+function updateWordStatus(id, newStatus) {
+    const word = state.words.find(w => w.id === id);
+    if(word) {
+        word.status = newStatus;
+        saveState();
+        showToast("Status updated!");
+    }
+}
+
+/* ==========================================
+   SHOP LOGIC
+   ========================================== */
+function buyCard(cardId, price) {
+    if(state.ownedCards.includes(cardId)) return;
+    if(state.coins >= price) {
+        state.coins -= price;
+        state.ownedCards.push(cardId);
+        saveState();
+        switchTab('cards');
+        showToast("Card purchased! 🎉");
+    } else {
+        showToast("Not enough coins! Play games to earn more.");
+    }
+}
+
+/* ==========================================
+   GAME ENGINE CORE
+   ========================================== */
+let currentGameMode = null;
+let currentSessionCoins = 0;
+let animationFrameId = null; // For canvas games
+
+// Helper to get words based on mode
+function getGameWords(mode, count) {
+    let pool = [];
+    if(state.words.length < 4) {
+        showToast("You need at least 4 words in your dictionary to play!");
+        return null;
+    }
+
+    if(mode === 'active') {
+        // 90% learning, 10% mastered logic via weighted drawing
+        let learning = state.words.filter(w => w.status === 'learning');
+        let mastered = state.words.filter(w => w.status === 'mastered');
+        
+        while(pool.length < count && pool.length < state.words.length) {
+            let r = Math.random();
+            let sourceList = (r < 0.9 && learning.length > 0) ? learning : mastered;
+            if(sourceList.length === 0) sourceList = state.words; // Fallback
+
+            let word = sourceList[Math.floor(Math.random() * sourceList.length)];
+            if(!pool.find(w => w.id === word.id)) pool.push(word);
+        }
+    } else {
+        // Random selection
+        let shuffled = [...state.words].sort(() => 0.5 - Math.random());
+        pool = shuffled.slice(0, count);
+    }
+    return pool;
+}
+
+function recordAnswer(wordId, isCorrect) {
+    let word = state.words.find(w => w.id === wordId);
+    if(word) {
+        word.total++;
+        if(isCorrect) word.correct++;
+        saveState();
+    }
+}
+
+function addGameCoins(amount) {
+    currentSessionCoins += amount;
+    state.coins += amount;
+    document.getElementById('game-session-coins').innerText = currentSessionCoins;
+    saveState();
+}
+
+function initGame(mode) {
+    const wordsRequired = { 'matching': 6, 'test': 4, 'building': 1, 'airplane': 4, 'crossy': 4, 'active': 4 };
+    
+    if(state.words.length < wordsRequired[mode === 'active' ? 'test' : mode]) {
+        showToast(`You need at least ${wordsRequired[mode === 'active' ? 'test' : mode]} words to play this!`);
+        return;
+    }
+
+    let actualMode = mode;
+    if(mode === 'active') {
+        const games = ['matching', 'test', 'building', 'airplane', 'crossy'];
+        actualMode = games[Math.floor(Math.random() * games.length)];
+    }
+
+    currentGameMode = actualMode;
+    currentSessionCoins = 0;
+    document.getElementById('game-session-coins').innerText = '0';
+    
+    const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'crossy': 'Crossy Word' };
+    document.getElementById('game-title').innerText = titles[actualMode] || 'Game';
+    
+    document.getElementById('game-overlay').classList.remove('hidden');
+    const area = document.getElementById('game-area');
+    area.innerHTML = ''; // Clear previous
+
+    // Launch specific game
+    switch(actualMode) {
+        case 'matching': startMatchingGame(area, mode === 'active'); break;
+        case 'test': startTestGame(area, mode === 'active'); break;
+        case 'building': startBuildingGame(area, mode === 'active'); break;
+        case 'airplane': startAirplaneGame(area, mode === 'active'); break;
+        case 'crossy': startCrossyGame(area, mode === 'active'); break;
+    }
+}
+
+function quitGame() {
+    if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    document.getElementById('game-overlay').classList.add('hidden');
+    currentGameMode = null;
+    showToast(`Earned ${currentSessionCoins} coins this session!`);
+}
+
+/* ==========================================
+   MINI-GAME IMPLEMENTATIONS
+   ========================================== */
+
+// --- 1. MATCHING GAME ---
+function startMatchingGame(container, isActiveMode) {
+    const words = getGameWords(isActiveMode ? 'active' : 'normal', 6);
+    if(!words) return quitGame();
+
+    let cards = [];
+    words.forEach(w => {
+        cards.push({ id: w.id, text: w.es, type: 'es', paired: false });
+        cards.push({ id: w.id, text: w.en, type: 'en', paired: false });
+    });
+    cards.sort(() => 0.5 - Math.random());
+
+    let flippedCards = [];
+    let lockBoard = false;
+    let matchesFound = 0;
+
+    container.innerHTML = `
+        <div class="grid grid-cols-3 md:grid-cols-4 gap-4 p-4 w-full h-full content-center max-w-3xl mx-auto">
+            ${cards.map((c, index) => `
+                <div class="relative w-full aspect-[4/3] perspective-1000 cursor-pointer card-container" data-index="${index}">
+                    <div class="absolute inset-0 w-full h-full transition-transform duration-500 transform-style-3d card-inner">
+                        <!-- Front (Hidden) -->
+                        <div class="absolute inset-0 w-full h-full bg-blue-500 rounded-xl border-b-4 border-blue-700 flex items-center justify-center backface-hidden">
+                            <i class="fa-solid fa-question text-4xl text-white opacity-50"></i>
+                        </div>
+                        <!-- Back (Word) -->
+                        <div class="absolute inset-0 w-full h-full bg-white rounded-xl border-4 border-blue-200 flex items-center justify-center backface-hidden rotate-y-180 p-2 text-center">
+                            <span class="font-bold text-lg text-slate-700">${c.text}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    const cardElements = container.querySelectorAll('.card-container');
+    
+    cardElements.forEach(el => {
+        el.addEventListener('click', () => {
+            if(lockBoard) return;
+            const index = el.getAttribute('data-index');
+            if(cards[index].paired || flippedCards.includes(index)) return;
+
+            el.querySelector('.card-inner').classList.add('rotate-y-180');
+            flippedCards.push(index);
+
+            if(flippedCards.length === 2) {
+                lockBoard = true;
+                const match1 = cards[flippedCards[0]];
+                const match2 = cards[flippedCards[1]];
+                const el1 = cardElements[flippedCards[0]];
+                const el2 = cardElements[flippedCards[1]];
+
+                if(match1.id === match2.id && match1.type !== match2.type) {
+                    // Match!
+                    setTimeout(() => {
+                        el1.style.opacity = '0'; el2.style.opacity = '0';
+                        match1.paired = true; match2.paired = true;
+                        recordAnswer(match1.id, true);
+                        addGameCoins(5);
+                        matchesFound++;
+                        flippedCards = [];
+                        lockBoard = false;
+                        if(matchesFound === words.length) {
+                            setTimeout(() => startMatchingGame(container, isActiveMode), 500); // Next round
+                        }
+                    }, 800);
+                } else {
+                    // No match
+                    recordAnswer(match1.id, false);
+                    setTimeout(() => {
+                        el1.querySelector('.card-inner').classList.remove('rotate-y-180');
+                        el2.querySelector('.card-inner').classList.remove('rotate-y-180');
+                        flippedCards = [];
+                        lockBoard = false;
+                    }, 1000);
+                }
+            }
+        });
+    });
+}
+
+// --- 2. TEST GAME ---
+function startTestGame(container, isActiveMode) {
+    const words = getGameWords(isActiveMode ? 'active' : 'normal', 4);
+    if(!words) return quitGame();
+
+    const targetWord = words[0]; // The one to guess
+    const options = words.sort(() => 0.5 - Math.random());
+
+    container.innerHTML = `
+        <div class="flex flex-col items-center justify-center w-full max-w-xl p-8">
+            <h3 class="text-2xl font-bold text-slate-500 mb-2">Translate:</h3>
+            <div class="text-6xl font-black text-blue-600 mb-10 bg-white px-8 py-4 rounded-3xl shadow-lg border-4 border-blue-100 text-center w-full">
+                ${targetWord.en}
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                ${options.map(opt => `
+                    <button onclick="handleTestAnswer(${targetWord.id}, ${opt.id}, ${isActiveMode})" class="btn-cartoon bg-white border-slate-200 border-2 border-b-8 text-slate-700 hover:bg-slate-50 text-2xl py-6 rounded-2xl">
+                        ${opt.es}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    // Expose logic to global scope temporarily for inline onclick
+    window.handleTestAnswer = (targetId, selectedId, activeMode) => {
+        if(targetId === selectedId) {
+            recordAnswer(targetId, true);
+            addGameCoins(10);
+            showToast("Correct! +10 Coins");
+        } else {
+            recordAnswer(targetId, false);
+            showToast("Oops! Incorrect.");
+        }
+        setTimeout(() => startTestGame(container, activeMode), 500);
+    };
+}
+
+// --- 3. BUILDING GAME ---
+function startBuildingGame(container, isActiveMode) {
+    const wordPool = getGameWords(isActiveMode ? 'active' : 'normal', 1);
+    if(!wordPool) return quitGame();
+    
+    const targetWord = wordPool[0];
+    const letters = targetWord.es.split('').map(l => ({ char: l, used: false })).sort(() => 0.5 - Math.random());
+    let currentBuild = [];
+
+    const render = () => {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center w-full max-w-2xl p-8">
+                <p class="text-xl font-bold text-slate-500 mb-2">Spell the Spanish word for:</p>
+                <h3 class="text-4xl font-black text-blue-600 mb-8">${targetWord.en}</h3>
+                
+                <!-- Dropzone -->
+                <div class="flex gap-2 mb-12 min-h-[4rem] px-4 py-2 border-b-4 border-dashed border-slate-300 w-full justify-center flex-wrap">
+                    ${currentBuild.map((char, index) => `
+                        <div onclick="removeLetterBuild(${index})" class="w-12 h-14 bg-blue-500 text-white font-bold text-2xl rounded-lg flex items-center justify-center cursor-pointer shadow-md transform hover:scale-110 transition-transform">
+                            ${char}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- Letter Pool -->
+                <div class="flex gap-3 flex-wrap justify-center">
+                    ${letters.map((l, index) => l.used ? `
+                        <div class="w-14 h-16 bg-slate-100 rounded-xl border-b-4 border-slate-200"></div>
+                    ` : `
+                        <button onclick="addLetterBuild(${index})" class="btn-cartoon bg-yellow-400 border-yellow-600 text-yellow-900 w-14 h-16 rounded-xl font-black text-2xl">
+                            ${l.char}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    window.addLetterBuild = (index) => {
+        letters[index].used = true;
+        currentBuild.push(letters[index].char);
+        checkBuild();
+        render();
+    };
+
+    window.removeLetterBuild = (buildIndex) => {
+        const char = currentBuild[buildIndex];
+        currentBuild.splice(buildIndex, 1);
+        // find first unused matching char in letters pool and restore it
+        let poolItem = letters.find(l => l.char === char && l.used);
+        if(poolItem) poolItem.used = false;
+        render();
+    };
+
+    const checkBuild = () => {
+        if(currentBuild.length === targetWord.es.length) {
+            if(currentBuild.join('') === targetWord.es) {
+                recordAnswer(targetWord.id, true);
+                addGameCoins(15);
+                showToast("Perfect Spelling! +15 Coins");
+                setTimeout(() => startBuildingGame(container, isActiveMode), 1000);
+            } else {
+                recordAnswer(targetWord.id, false);
+                showToast("Not quite right! Try again.");
+                // Reset
+                currentBuild = [];
+                letters.forEach(l => l.used = false);
+            }
+        }
+    };
+
+    render();
+}
+
+// --- 4. AIRPLANE GAME (Canvas) ---
+function startAirplaneGame(container, isActiveMode) {
+    container.innerHTML = `
+        <div id="game-canvas-container">
+            <div class="game-ui-overlay">
+                <div id="air-target" class="bg-black/50 px-4 py-2 rounded-full">Target: ...</div>
+            </div>
+            <canvas id="airplaneCanvas"></canvas>
+        </div>
+        <div class="absolute bottom-4 text-slate-400 font-bold">Use UP/DOWN arrows or click/tap canvas to fly</div>
+    `;
+
+    const canvas = document.getElementById('airplaneCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Make canvas sharp
+    const resizeCanvas = () => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let targetWord = null;
+    let wrongWords = [];
+
+    const resetLevel = () => {
+        const words = getGameWords(isActiveMode ? 'active' : 'normal', 4);
+        if(!words) return quitGame();
+        targetWord = words[0];
+        document.getElementById('air-target').innerText = `Catch: ${targetWord.en}`;
+        wrongWords = words.slice(1);
+        clouds = [];
+        spawnTimer = 0;
+    };
+
+    let plane = { x: 50, y: canvas.height/2, w: 60, h: 40, vY: 0, gravity: 0.2, lift: -5 };
+    let clouds = [];
+    let spawnTimer = 0;
+    let isGameOver = false;
+
+    // Controls
+    let flying = false;
+    const flyUp = () => { flying = true; };
+    const stopFly = () => { flying = false; };
+    
+    window.addEventListener('keydown', (e) => { if(e.key === 'ArrowUp' && currentGameMode === 'airplane') flyUp(); });
+    window.addEventListener('keyup', (e) => { if(e.key === 'ArrowUp') stopFly(); });
+    canvas.addEventListener('mousedown', flyUp);
+    canvas.addEventListener('mouseup', stopFly);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); flyUp(); });
+    canvas.addEventListener('touchend', stopFly);
+
+    resetLevel();
+
+    function spawnCloud() {
+        // Decide if correct or wrong cloud
+        let isCorrect = Math.random() < 0.4;
+        let text = isCorrect ? targetWord.es : wrongWords[Math.floor(Math.random() * wrongWords.length)].es;
+        
+        clouds.push({
+            x: canvas.width,
+            y: Math.random() * (canvas.height - 60) + 30,
+            w: ctx.measureText(text).width + 60, // approximate width based on text
+            h: 40,
+            text: text,
+            isCorrect: isCorrect,
+            speed: 3 + Math.random() * 2
+        });
+    }
+
+    function drawPlane() {
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath();
+        ctx.roundRect(plane.x, plane.y, plane.w, plane.h, 10);
+        ctx.fill();
+        // window
+        ctx.fillStyle = '#bae6fd';
+        ctx.beginPath();
+        ctx.arc(plane.x + 40, plane.y + 15, 8, 0, Math.PI*2);
+        ctx.fill();
+        // tail
+        ctx.fillStyle = '#1d4ed8';
+        ctx.beginPath();
+        ctx.moveTo(plane.x, plane.y + plane.h/2);
+        ctx.lineTo(plane.x - 15, plane.y - 10);
+        ctx.lineTo(plane.x + 10, plane.y);
+        ctx.fill();
+    }
+
+    function gameLoop() {
+        if(currentGameMode !== 'airplane') return;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if(isGameOver) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('CRASHED!', canvas.width/2, canvas.height/2);
+            ctx.font = '20px Arial';
+            ctx.fillText('Restarting...', canvas.width/2, canvas.height/2 + 40);
+            return;
+        }
+
+        // Physics
+        if(flying) plane.vY = plane.lift;
+        plane.vY += plane.gravity;
+        plane.y += plane.vY;
+
+        // Bounds
+        if(plane.y < 0) plane.y = 0;
+        if(plane.y > canvas.height - plane.h) plane.y = canvas.height - plane.h;
+
+        drawPlane();
+
+        // Clouds
+        spawnTimer++;
+        if(spawnTimer > 100) {
+            spawnCloud();
+            spawnTimer = 0;
+        }
+
+        ctx.font = 'bold 20px Fredoka, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for(let i = clouds.length - 1; i >= 0; i--) {
+            let c = clouds[i];
+            c.x -= c.speed;
+
+            // Draw Cloud
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.roundRect(c.x, c.y, c.w, c.h, 20);
+            ctx.fill();
+            ctx.fillStyle = '#334155';
+            ctx.fillText(c.text, c.x + c.w/2, c.y + c.h/2);
+
+            // Collision AABB
+            if (plane.x < c.x + c.w && plane.x + plane.w > c.x &&
+                plane.y < c.y + c.h && plane.y + plane.h > c.y) {
+                
+                if(c.isCorrect) {
+                    recordAnswer(targetWord.id, true);
+                    addGameCoins(20);
+                    showToast("+20 Coins!");
+                    clouds.splice(i, 1);
+                    resetLevel();
+                } else {
+                    recordAnswer(targetWord.id, false);
+                    isGameOver = true;
+                    setTimeout(() => { isGameOver = false; resetLevel(); plane.y = canvas.height/2; }, 1500);
+                }
+            } else if (c.x + c.w < 0) {
+                clouds.splice(i, 1); // remove off screen
+            }
+        }
+
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Ensure font is loaded before first frame to measure text accurately
+    document.fonts.ready.then(() => {
+        gameLoop();
+    });
+}
+
+// --- 5. CROSSY ROAD GAME (Canvas) ---
+function startCrossyGame(container, isActiveMode) {
+    container.innerHTML = `
+        <div id="game-canvas-container" style="background: #22c55e;">
+            <div class="game-ui-overlay">
+                <div id="crossy-target" class="bg-black/50 px-4 py-2 rounded-full">Target: ...</div>
+            </div>
+            <canvas id="crossyCanvas"></canvas>
+        </div>
+        <div class="absolute bottom-4 text-slate-800 bg-white/80 px-4 py-1 rounded-full font-bold">Use ARROW KEYS or swipe to move</div>
+    `;
+
+    const canvas = document.getElementById('crossyCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const resizeCanvas = () => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let targetWord = null;
+    let options = [];
+    const gridSize = 50; // Logical grid size, will scale to canvas
+    let scaleX, scaleY;
+    let cols = 11;
+    let rows = 9;
+
+    let player = { col: 5, row: rows - 1 };
+    let obstacles = [];
+    let isGameOver = false;
+
+    const resetLevel = () => {
+        const words = getGameWords(isActiveMode ? 'active' : 'normal', 4);
+        if(!words) return quitGame();
+        targetWord = words[0];
+        document.getElementById('crossy-target').innerText = `Find: ${targetWord.en}`;
+        options = words.sort(() => 0.5 - Math.random());
+        
+        player = { col: Math.floor(cols/2), row: rows - 1 };
+        initObstacles();
+    };
+
+    function initObstacles() {
+        obstacles = [];
+        // Rows 1 to 7 are roads
+        for(let r = 1; r < rows - 1; r++) {
+            let speed = (Math.random() * 0.05 + 0.03) * (r%2 === 0 ? 1 : -1);
+            let numCars = Math.floor(Math.random() * 2) + 2;
+            for(let c = 0; c < numCars; c++) {
+                obstacles.push({
+                    row: r,
+                    col: c * 4 + Math.random(), // spread them out
+                    w: 1.5, // 1.5 grid cells wide
+                    speed: speed,
+                    color: ['#ef4444', '#3b82f6', '#eab308', '#a855f7'][Math.floor(Math.random()*4)]
+                });
+            }
+        }
+    }
+
+    // Input handling
+    let touchStartX = 0;
+    let touchStartY = 0;
+    
+    const movePlayer = (dCol, dRow) => {
+        if(isGameOver) return;
+        player.col = Math.max(0, Math.min(cols - 1, player.col + dCol));
+        player.row = Math.max(0, Math.min(rows - 1, player.row + dRow));
+        
+        // Win Condition: reached top row
+        if(player.row === 0) {
+            // Determine which option they landed on based on col
+            let zoneWidth = cols / 4;
+            let optIndex = Math.floor(player.col / zoneWidth);
+            if(optIndex > 3) optIndex = 3;
+            let selectedWord = options[optIndex];
+
+            if(selectedWord && selectedWord.id === targetWord.id) {
+                recordAnswer(targetWord.id, true);
+                addGameCoins(25);
+                showToast("+25 Coins! Safe!");
+                resetLevel();
+            } else {
+                recordAnswer(targetWord.id, false);
+                isGameOver = true;
+                showToast("Wrong Word!");
+                setTimeout(() => { isGameOver = false; resetLevel(); }, 1500);
+            }
+        }
+    };
+
+    const handleKey = (e) => {
+        if(currentGameMode !== 'crossy') return;
+        switch(e.key) {
+            case 'ArrowUp': movePlayer(0, -1); break;
+            case 'ArrowDown': movePlayer(0, 1); break;
+            case 'ArrowLeft': movePlayer(-1, 0); break;
+            case 'ArrowRight': movePlayer(1, 0); break;
+        }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    
+    // Swipe support
+    canvas.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, {passive:true});
+    
+    canvas.addEventListener('touchend', e => {
+        if(currentGameMode !== 'crossy') return;
+        let touchEndX = e.changedTouches[0].screenX;
+        let touchEndY = e.changedTouches[0].screenY;
+        let dx = touchEndX - touchStartX;
+        let dy = touchEndY - touchStartY;
+        
+        if(Math.abs(dx) > Math.abs(dy)) {
+            if(Math.abs(dx) > 30) movePlayer(dx > 0 ? 1 : -1, 0);
+        } else {
+            if(Math.abs(dy) > 30) movePlayer(0, dy > 0 ? 1 : -1);
+        }
+    }, {passive:true});
+
+    resetLevel();
+
+    function gameLoop() {
+        if(currentGameMode !== 'crossy') return;
+
+        scaleX = canvas.width / cols;
+        scaleY = canvas.height / rows;
+
+        // Draw Environment
+        ctx.fillStyle = '#22c55e'; // Grass base
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#475569'; // Roads (rows 1 to rows-2)
+        ctx.fillRect(0, scaleY, canvas.width, canvas.height - (2 * scaleY));
+
+        // Draw Top Zones (Words)
+        let zoneW = canvas.width / 4;
+        ctx.font = 'bold ' + (scaleY*0.4) + 'px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        for(let i=0; i<4; i++) {
+            ctx.fillStyle = i%2===0 ? '#86efac' : '#bbf7d0';
+            ctx.fillRect(i*zoneW, 0, zoneW, scaleY);
+            ctx.fillStyle = '#166534';
+            if(options[i]) ctx.fillText(options[i].es, i*zoneW + zoneW/2, scaleY/2);
+        }
+
+        if(isGameOver) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.fillText('SPLAT!', canvas.width/2, canvas.height/2);
+            animationFrameId = requestAnimationFrame(gameLoop);
+            return;
+        }
+
+        // Update & Draw Obstacles
+        obstacles.forEach(obs => {
+            obs.col += obs.speed;
+            // Wrap around
+            if(obs.speed > 0 && obs.col > cols) obs.col = -obs.w;
+            if(obs.speed < 0 && obs.col < -obs.w) obs.col = cols;
+
+            // Draw Car
+            ctx.fillStyle = obs.color;
+            ctx.beginPath();
+            ctx.roundRect(obs.col * scaleX, obs.row * scaleY + (scaleY*0.1), obs.w * scaleX, scaleY*0.8, 8);
+            ctx.fill();
+
+            // Collision Detection
+            // Player AABB: col to col+1, row to row+1
+            // Obs AABB: obs.col to obs.col+obs.w, row to row+1
+            if (player.row === obs.row) {
+                if (player.col < obs.col + obs.w && player.col + 1 > obs.col) {
+                    isGameOver = true;
+                    showToast("Watch out for traffic!");
+                    setTimeout(() => { isGameOver = false; resetLevel(); }, 1500);
+                }
+            }
+        });
+
+        // Draw Player (Frog)
+        ctx.fillStyle = '#a3e635'; // Lime green
+        ctx.beginPath();
+        let px = player.col * scaleX;
+        let py = player.row * scaleY;
+        ctx.roundRect(px + scaleX*0.1, py + scaleY*0.1, scaleX*0.8, scaleY*0.8, 10);
+        ctx.fill();
+        // Eyes
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(px + scaleX*0.3, py + scaleY*0.3, scaleX*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + scaleX*0.7, py + scaleY*0.3, scaleX*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath(); ctx.arc(px + scaleX*0.3, py + scaleY*0.25, scaleX*0.05, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + scaleX*0.7, py + scaleY*0.25, scaleX*0.05, 0, Math.PI*2); ctx.fill();
+
+
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    document.fonts.ready.then(() => { gameLoop(); });
+}
+
+
+/* ==========================================
+   INITIALIZATION
+   ========================================== */
+window.onload = () => {
+    loadState();
+    updateGlobalCoinDisplay();
+    switchTab(state.activeTab);
+};
+
+</script>
+</body>
+</html>
