@@ -123,14 +123,21 @@
             <button onclick="switchTab('cards')" id="tab-cards" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-500 transition-colors">
                 <i class="fa-solid fa-layer-group text-2xl"></i> <span class="hidden md:inline">Cards Shop</span>
             </button>
-            <button onclick="switchTab('rewards')" id="tab-rewards" class="nav-btn flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 p-3 md:p-4 rounded-xl text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-yellow-500 transition-colors">
-                <i class="fa-solid fa-coins text-2xl text-yellow-400"></i> <span class="hidden md:inline">Rewards</span>
-            </button>
         </div>
-        <div class="hidden md:block mt-auto p-6 bg-slate-50 text-center rounded-tr-3xl">
-            <p class="font-bold text-slate-500 mb-1">Total Coins</p>
-            <div class="text-3xl font-black text-yellow-500 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-star"></i> <span id="nav-coin-display">0</span>
+        <div class="hidden md:block mt-auto p-4 bg-slate-50 rounded-tr-3xl border-t-2 border-slate-100">
+            <div class="flex justify-around items-center">
+                <div class="text-center">
+                    <p class="font-bold text-slate-400 text-xs uppercase mb-1">Streak</p>
+                    <div class="text-2xl font-black text-orange-500 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-fire"></i> <span id="nav-streak-display">0</span>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <p class="font-bold text-slate-400 text-xs uppercase mb-1">Coins</p>
+                    <div class="text-2xl font-black text-yellow-500 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-star"></i> <span id="nav-coin-display">0</span>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
@@ -186,7 +193,9 @@ let state = {
         { id: 10, es: "Casa", en: "House", status: "learning", correct: 0, total: 0 }
     ],
     ownedCards: [],
-    activeTab: 'games'
+    activeTab: 'games',
+    dailyStreak: 0,
+    lastVisitDate: null
 };
 
 // Generate 50 Cards
@@ -219,16 +228,42 @@ function loadState() {
         state.coins = parsed.coins !== undefined ? parsed.coins : state.coins;
         state.words = parsed.words || state.words;
         state.ownedCards = parsed.ownedCards || [];
+        state.dailyStreak = parsed.dailyStreak || 0;
+        state.lastVisitDate = parsed.lastVisitDate || null;
     }
+    updateStreak();
 }
 
 function saveState() {
     localStorage.setItem('learnSpanishState', JSON.stringify({
         coins: state.coins,
         words: state.words,
-        ownedCards: state.ownedCards
+        ownedCards: state.ownedCards,
+        dailyStreak: state.dailyStreak,
+        lastVisitDate: state.lastVisitDate
     }));
     updateGlobalCoinDisplay();
+}
+
+function updateStreak() {
+    const today = new Date().toDateString();
+    if (state.lastVisitDate === today) return; // Already counted today
+
+    if (!state.lastVisitDate) {
+        state.dailyStreak = 1;
+    } else {
+        const lastVisit = new Date(state.lastVisitDate);
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (lastVisit.toDateString() === yesterday.toDateString()) {
+            state.dailyStreak++;
+        } else {
+            state.dailyStreak = 1; // Reset streak
+        }
+    }
+    state.lastVisitDate = today;
+    saveState();
 }
 
 function showToast(message) {
@@ -244,8 +279,7 @@ function showToast(message) {
 
 function updateGlobalCoinDisplay() {
     document.getElementById('nav-coin-display').innerText = state.coins;
-    let rewardsDisplay = document.getElementById('rewards-big-coin');
-    if(rewardsDisplay) rewardsDisplay.innerText = state.coins;
+    document.getElementById('nav-streak-display').innerText = state.dailyStreak;
 }
 
 /* ==========================================
@@ -271,7 +305,6 @@ function switchTab(tabId) {
         case 'games': renderGamesTab(container); break;
         case 'stats': renderStatsTab(container); break;
         case 'cards': renderCardsTab(container); break;
-        case 'rewards': renderRewardsTab(container); break;
     }
 }
 
@@ -279,7 +312,7 @@ function switchTab(tabId) {
 
 function renderGamesTab(container) {
     const html = `
-        <div class="max-w-5xl mx-auto">
+        <div class="max-w-5xl mx-auto pb-20">
             <h2 class="text-4xl font-black text-white mb-2 drop-shadow-md text-center">Choose a Game!</h2>
             <p class="text-white text-center text-xl mb-8 font-semibold drop-shadow">Earn coins by practicing your words.</p>
             
@@ -289,8 +322,8 @@ function renderGamesTab(container) {
                     <div class="bg-blue-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
                         <i class="fa-solid fa-clone text-4xl text-blue-500 group-hover:text-white"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Matching</h3>
-                    <p class="text-slate-500 font-medium">Flip cards to match Spanish words with English meanings.</p>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Endless Matching</h3>
+                    <p class="text-slate-500 font-medium">Flip cards to match translations. Keeps refilling as you play!</p>
                 </div>
 
                 <!-- Test -->
@@ -300,6 +333,15 @@ function renderGamesTab(container) {
                     </div>
                     <h3 class="text-2xl font-bold text-slate-800 mb-2">Quiz Test</h3>
                     <p class="text-slate-500 font-medium">Classic multiple choice test. Pick the right translation.</p>
+                </div>
+
+                <!-- Listening Race -->
+                <div onclick="initGame('listening')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-rose-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-rose-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-ear-listen text-4xl text-rose-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Listening Race</h3>
+                    <p class="text-slate-500 font-medium">Listen to the spoken Spanish word and quickly pick the translation!</p>
                 </div>
 
                 <!-- Building -->
@@ -366,7 +408,7 @@ function renderGamesTab(container) {
                 </div>
 
                 <!-- Active (Mix) -->
-                <div onclick="initGame('active')" class="bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 shadow-xl border-b-8 border-red-700 cursor-pointer hover:-translate-y-2 transition-transform text-white">
+                <div onclick="initGame('active')" class="bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 shadow-xl border-b-8 border-red-700 cursor-pointer hover:-translate-y-2 transition-transform text-white lg:col-span-2">
                     <div class="bg-white/20 w-20 h-20 rounded-2xl flex items-center justify-center mb-4">
                         <i class="fa-solid fa-bolt text-4xl text-white"></i>
                     </div>
@@ -521,42 +563,6 @@ function renderCardsTab(container) {
             
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 pb-20">
                 ${cardsHtml}
-            </div>
-        </div>
-    `;
-    container.innerHTML = html;
-}
-
-function renderRewardsTab(container) {
-    let ownedCount = state.ownedCards.length;
-    let totalCards = shopCards.length;
-    let percentage = Math.round((ownedCount/totalCards)*100);
-
-    const html = `
-        <div class="h-full flex flex-col items-center justify-center max-w-2xl mx-auto text-center">
-            <div class="bg-white w-full rounded-3xl shadow-2xl p-10 border-b-8 border-yellow-200 relative overflow-hidden">
-                <div class="absolute -top-10 -left-10 text-9xl text-yellow-50 opacity-50"><i class="fa-solid fa-coins"></i></div>
-                <div class="absolute -bottom-10 -right-10 text-9xl text-yellow-50 opacity-50"><i class="fa-solid fa-coins"></i></div>
-                
-                <h2 class="text-3xl font-black text-slate-400 uppercase tracking-widest mb-4">Your Treasury</h2>
-                
-                <div class="text-8xl font-black text-yellow-400 drop-shadow-lg mb-8 flex justify-center items-center gap-4">
-                    <i class="fa-solid fa-coins animate-bounce"></i> 
-                    <span id="rewards-big-coin">${state.coins}</span>
-                </div>
-                
-                <p class="text-xl text-slate-500 font-bold mb-8">Play games to earn more coins and buy faster cards!</p>
-
-                <div class="bg-slate-50 rounded-2xl p-6 border-2 border-slate-100">
-                    <h3 class="text-lg font-bold text-slate-700 mb-2">Card Collection Progress</h3>
-                    <div class="flex justify-between font-bold text-sm text-slate-500 mb-2">
-                        <span>${ownedCount} / ${totalCards} Cards</span>
-                        <span>${percentage}%</span>
-                    </div>
-                    <div class="w-full bg-slate-200 rounded-full h-4">
-                        <div class="bg-blue-500 h-4 rounded-full transition-all duration-1000" style="width: ${percentage}%"></div>
-                    </div>
-                </div>
             </div>
         </div>
     `;
@@ -764,6 +770,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
         switch(currentMode) {
             case 'matching': startMatchingGame(container, false); break;
             case 'test': startTestGame(container, false); break;
+            case 'listening': startListeningGame(container, false); break;
             case 'building': startBuildingGame(container, false); break;
             // airplane & crossy are handled internally for normal mode
             case 'climb': startClimbUpGame(container, false, args[0], args[1]); break;
@@ -778,7 +785,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
             animationFrameId = null;
         }
         
-        const games = ['matching', 'test', 'building', 'airplane', 'helicopter', 'crossy', 'climb', 'typing', 'picture'];
+        const games = ['matching', 'test', 'listening', 'building', 'airplane', 'helicopter', 'crossy', 'climb', 'typing', 'picture'];
         
         // Prevent picking the exact same game twice in a row
         let nextMode = currentMode;
@@ -788,7 +795,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
         
         currentGameMode = nextMode;
         
-        const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'helicopter': 'Heli Study', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
+        const titles = { 'matching': 'Endless Matching', 'test': 'Quiz Time', 'listening': 'Listening Race', 'building': 'Word Builder', 'airplane': 'Flight School', 'helicopter': 'Heli Study', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
         document.getElementById('game-title').innerText = titles[nextMode] || 'Active Mode';
         
         container.style.background = '';
@@ -798,6 +805,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
         switch(nextMode) {
             case 'matching': startMatchingGame(container, true); break;
             case 'test': startTestGame(container, true); break;
+            case 'listening': startListeningGame(container, true); break;
             case 'building': startBuildingGame(container, true); break;
             case 'airplane': startAirplaneGame(container, true); break;
             case 'helicopter': startHelicopterGame(container, true); break;
@@ -810,7 +818,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
 }
 
 function initGame(mode) {
-    const wordsRequired = { 'matching': 6, 'test': 4, 'building': 1, 'airplane': 4, 'helicopter': 4, 'crossy': 4, 'climb': 3, 'typing': 1, 'picture': 4, 'active': 4 };
+    const wordsRequired = { 'matching': 6, 'test': 4, 'listening': 4, 'building': 1, 'airplane': 4, 'helicopter': 4, 'crossy': 4, 'climb': 3, 'typing': 1, 'picture': 4, 'active': 4 };
     
     if(state.words.length < wordsRequired[mode === 'active' ? 'test' : mode]) {
         showToast(`You need at least ${wordsRequired[mode === 'active' ? 'test' : mode]} words to play this!`);
@@ -819,7 +827,7 @@ function initGame(mode) {
 
     let actualMode = mode;
     if(mode === 'active') {
-        const games = ['matching', 'test', 'building', 'airplane', 'helicopter', 'crossy', 'climb', 'typing', 'picture'];
+        const games = ['matching', 'test', 'listening', 'building', 'airplane', 'helicopter', 'crossy', 'climb', 'typing', 'picture'];
         actualMode = games[Math.floor(Math.random() * games.length)];
     }
 
@@ -827,7 +835,7 @@ function initGame(mode) {
     currentSessionCoins = 0;
     document.getElementById('game-session-coins').innerText = '0';
     
-    const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'helicopter': 'Heli Study', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
+    const titles = { 'matching': 'Endless Matching', 'test': 'Quiz Time', 'listening': 'Listening Race', 'building': 'Word Builder', 'airplane': 'Flight School', 'helicopter': 'Heli Study', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
     document.getElementById('game-title').innerText = titles[actualMode] || 'Game';
     
     document.getElementById('game-overlay').classList.remove('hidden');
@@ -840,6 +848,7 @@ function initGame(mode) {
     switch(actualMode) {
         case 'matching': startMatchingGame(area, mode === 'active'); break;
         case 'test': startTestGame(area, mode === 'active'); break;
+        case 'listening': startListeningGame(area, mode === 'active'); break;
         case 'building': startBuildingGame(area, mode === 'active'); break;
         case 'airplane': startAirplaneGame(area, mode === 'active'); break;
         case 'helicopter': startHelicopterGame(area, mode === 'active'); break;
@@ -864,13 +873,13 @@ function quitGame() {
    MINI-GAME IMPLEMENTATIONS
    ========================================== */
 
-// --- 1. MATCHING GAME ---
+// --- 1. ENDLESS MATCHING GAME ---
 function startMatchingGame(container, isActiveMode) {
-    const words = getGameWords(isActiveMode ? 'active' : 'normal', 6);
-    if(!words) return quitGame();
+    let activeWords = getGameWords(isActiveMode ? 'active' : 'normal', 6);
+    if(!activeWords) return quitGame();
 
     let cards = [];
-    words.forEach(w => {
+    activeWords.forEach(w => {
         cards.push({ id: w.id, text: w.es, type: 'es', paired: false });
         cards.push({ id: w.id, text: w.en, type: 'en', paired: false });
     });
@@ -878,72 +887,112 @@ function startMatchingGame(container, isActiveMode) {
 
     let flippedCards = [];
     let lockBoard = false;
-    let matchesFound = 0;
+    let matchCount = 0;
 
-    container.innerHTML = `
-        <div class="grid grid-cols-3 md:grid-cols-4 gap-4 p-4 w-full h-full content-center max-w-3xl mx-auto">
-            ${cards.map((c, index) => `
-                <div class="relative w-full aspect-[4/3] perspective-1000 cursor-pointer card-container" data-index="${index}">
-                    <div class="absolute inset-0 w-full h-full transition-transform duration-500 transform-style-3d card-inner">
-                        <!-- Front (Hidden) -->
-                        <div class="absolute inset-0 w-full h-full bg-blue-500 rounded-xl border-b-4 border-blue-700 flex items-center justify-center backface-hidden">
-                            <i class="fa-solid fa-question text-4xl text-white opacity-50"></i>
-                        </div>
-                        <!-- Back (Word) -->
-                        <div class="absolute inset-0 w-full h-full bg-white rounded-xl border-4 border-blue-200 flex items-center justify-center backface-hidden rotate-y-180 p-2 text-center">
-                            <span class="font-bold text-lg text-slate-700">${c.text}</span>
+    const renderBoard = () => {
+        container.innerHTML = `
+            <div class="grid grid-cols-3 md:grid-cols-4 gap-4 p-4 w-full h-full content-center max-w-3xl mx-auto">
+                ${cards.map((c, index) => `
+                    <div class="relative w-full aspect-[4/3] perspective-1000 cursor-pointer card-container transition-opacity duration-300" data-index="${index}">
+                        <div class="absolute inset-0 w-full h-full transition-transform duration-500 transform-style-3d card-inner">
+                            <!-- Front (Hidden) -->
+                            <div class="absolute inset-0 w-full h-full bg-blue-500 rounded-xl border-b-4 border-blue-700 flex items-center justify-center backface-hidden shadow-sm">
+                                <i class="fa-solid fa-question text-4xl text-white opacity-50"></i>
+                            </div>
+                            <!-- Back (Word) -->
+                            <div class="absolute inset-0 w-full h-full bg-white rounded-xl border-4 border-blue-200 flex items-center justify-center backface-hidden rotate-y-180 p-2 text-center shadow-md">
+                                <span class="font-bold text-lg text-slate-700">${c.text}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
+                `).join('')}
+            </div>
+        `;
 
-    const cardElements = container.querySelectorAll('.card-container');
-    
-    cardElements.forEach(el => {
-        el.addEventListener('click', () => {
-            if(lockBoard) return;
-            const index = el.getAttribute('data-index');
-            if(cards[index].paired || flippedCards.includes(index)) return;
+        const cardElements = container.querySelectorAll('.card-container');
+        
+        cardElements.forEach(el => {
+            el.addEventListener('click', () => {
+                if(lockBoard) return;
+                const index = el.getAttribute('data-index');
+                if(cards[index].paired || flippedCards.includes(index)) return;
 
-            el.querySelector('.card-inner').classList.add('rotate-y-180');
-            flippedCards.push(index);
+                el.querySelector('.card-inner').classList.add('rotate-y-180');
+                flippedCards.push(index);
 
-            if(flippedCards.length === 2) {
-                lockBoard = true;
-                const match1 = cards[flippedCards[0]];
-                const match2 = cards[flippedCards[1]];
-                const el1 = cardElements[flippedCards[0]];
-                const el2 = cardElements[flippedCards[1]];
+                if(flippedCards.length === 2) {
+                    lockBoard = true;
+                    const idx1 = flippedCards[0];
+                    const idx2 = flippedCards[1];
+                    const match1 = cards[idx1];
+                    const match2 = cards[idx2];
+                    const el1 = cardElements[idx1];
+                    const el2 = cardElements[idx2];
 
-                if(match1.id === match2.id && match1.type !== match2.type) {
-                    // Match!
-                    setTimeout(() => {
-                        el1.style.opacity = '0'; el2.style.opacity = '0';
-                        match1.paired = true; match2.paired = true;
-                        recordAnswer(match1.id, true);
-                        addGameCoins(5);
-                        matchesFound++;
-                        flippedCards = [];
-                        lockBoard = false;
-                        if(matchesFound === words.length) {
-                            setTimeout(() => triggerNextRound(container, isActiveMode, 'matching'), 500); // Next round
-                        }
-                    }, 800);
-                } else {
-                    // No match
-                    recordAnswer(match1.id, false);
-                    setTimeout(() => {
-                        el1.querySelector('.card-inner').classList.remove('rotate-y-180');
-                        el2.querySelector('.card-inner').classList.remove('rotate-y-180');
-                        flippedCards = [];
-                        lockBoard = false;
-                    }, 1000);
+                    if(match1.id === match2.id && match1.type !== match2.type) {
+                        // Correct Match!
+                        matchCount++;
+                        setTimeout(() => {
+                            el1.style.opacity = '0'; el2.style.opacity = '0';
+                            el1.style.pointerEvents = 'none'; el2.style.pointerEvents = 'none';
+                            recordAnswer(match1.id, true);
+                            addGameCoins(5);
+                            flippedCards = [];
+                            
+                            // Check Active Mode break
+                            if (isActiveMode && matchCount >= 3) {
+                                setTimeout(() => triggerNextRound(container, true, 'matching'), 500);
+                                return;
+                            }
+
+                            // Refill the empty slots endlessly
+                            setTimeout(() => {
+                                let currentActiveIds = [...new Set(cards.filter(c => !c.paired).map(c => c.id))];
+                                let pool = state.words.filter(w => !currentActiveIds.includes(w.id));
+                                if (pool.length === 0) pool = state.words; // Fallback if dictionary is very small
+                                
+                                let newWord = pool[Math.floor(Math.random() * pool.length)];
+
+                                // Replace backing data
+                                cards[idx1] = { id: newWord.id, text: newWord.es, type: 'es', paired: false };
+                                cards[idx2] = { id: newWord.id, text: newWord.en, type: 'en', paired: false };
+                                
+                                // Randomize ES/EN positions
+                                if (Math.random() > 0.5) {
+                                    cards[idx1].text = newWord.en; cards[idx1].type = 'en';
+                                    cards[idx2].text = newWord.es; cards[idx2].type = 'es';
+                                }
+
+                                // Update DOM
+                                el1.querySelector('span').innerText = cards[idx1].text;
+                                el2.querySelector('span').innerText = cards[idx2].text;
+
+                                // Reset flip and fade back in
+                                el1.querySelector('.card-inner').classList.remove('rotate-y-180');
+                                el2.querySelector('.card-inner').classList.remove('rotate-y-180');
+                                el1.style.opacity = '1'; el2.style.opacity = '1';
+                                el1.style.pointerEvents = 'auto'; el2.style.pointerEvents = 'auto';
+
+                                lockBoard = false;
+                            }, 400);
+
+                        }, 800);
+                    } else {
+                        // No match
+                        recordAnswer(match1.id, false);
+                        setTimeout(() => {
+                            el1.querySelector('.card-inner').classList.remove('rotate-y-180');
+                            el2.querySelector('.card-inner').classList.remove('rotate-y-180');
+                            flippedCards = [];
+                            lockBoard = false;
+                        }, 1000);
+                    }
                 }
-            }
+            });
         });
-    });
+    };
+
+    renderBoard();
 }
 
 // --- 2. TEST GAME ---
@@ -981,6 +1030,88 @@ function startTestGame(container, isActiveMode) {
             showToast("Oops! Incorrect.");
         }
         setTimeout(() => triggerNextRound(container, activeMode, 'test'), 500);
+    };
+}
+
+// --- 2b. LISTENING RACE GAME ---
+function startListeningGame(container, isActiveMode) {
+    const words = getGameWords(isActiveMode ? 'active' : 'normal', 4);
+    if(!words) return quitGame();
+
+    const targetWord = words[0]; 
+    const options = words.sort(() => 0.5 - Math.random());
+    let timeLeft = 100;
+
+    container.innerHTML = `
+        <div class="flex flex-col items-center justify-center w-full max-w-xl p-8">
+            <div class="w-full bg-slate-200 rounded-full h-4 mb-8">
+                <div id="listen-timer" class="bg-rose-500 h-4 rounded-full transition-all duration-75" style="width: 100%"></div>
+            </div>
+            
+            <button id="play-audio-btn" class="w-40 h-40 rounded-full bg-rose-100 border-8 border-rose-500 text-rose-500 text-7xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors mb-10 shadow-lg active:scale-95">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full relative z-10">
+                ${options.map(opt => `
+                    <button onclick="handleListenAnswer(${targetWord.id}, ${opt.id}, ${isActiveMode})" class="btn-cartoon bg-white border-slate-200 border-2 border-b-8 text-slate-700 hover:bg-slate-50 text-2xl py-6 rounded-2xl">
+                        ${opt.en}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    const playAudio = () => {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(targetWord.es);
+            utterance.lang = 'es-ES'; // Spanish locale
+            speechSynthesis.speak(utterance);
+        } else {
+            showToast("Audio not supported in this browser.");
+        }
+    };
+
+    document.getElementById('play-audio-btn').onclick = playAudio;
+    setTimeout(playAudio, 400); // Auto-play the word shortly after rendering
+
+    const timerEl = document.getElementById('listen-timer');
+    let isOver = false;
+
+    const tick = () => {
+        if(isOver || currentGameMode !== 'listening') return;
+        
+        // At 60fps (~16ms per frame), subtracting 0.32 per frame = ~5 seconds total
+        timeLeft -= 0.32; 
+        
+        if(timeLeft <= 0) {
+            timeLeft = 0;
+            isOver = true;
+            recordAnswer(targetWord.id, false);
+            showToast("Time's up! It was: " + targetWord.en);
+            setTimeout(() => triggerNextRound(container, isActiveMode, 'listening'), 1500);
+        }
+        
+        if (timerEl) timerEl.style.width = timeLeft + '%';
+        if (!isOver) animationFrameId = requestAnimationFrame(tick);
+    };
+    
+    animationFrameId = requestAnimationFrame(tick);
+
+    window.handleListenAnswer = (targetId, selectedId, activeMode) => {
+        if(isOver) return;
+        isOver = true;
+        speechSynthesis.cancel(); // Stop speaking immediately on click
+        
+        if(targetId === selectedId) {
+            recordAnswer(targetId, true);
+            addGameCoins(15);
+            showToast("Fast Ears! +15 Coins");
+        } else {
+            recordAnswer(targetId, false);
+            showToast("Oops! Incorrect.");
+        }
+        setTimeout(() => triggerNextRound(container, activeMode, 'listening'), 700);
     };
 }
 
@@ -1878,7 +2009,6 @@ function startPictureGame(container, isActiveMode) {
    ========================================== */
 window.onload = () => {
     loadState();
-    updateGlobalCoinDisplay();
     switchTab(state.activeTab);
 };
 
