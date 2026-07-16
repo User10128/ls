@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LearnSpanish - Fun Study Games</title>
-    <link rel="icon" href="/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
-
 
         body {
             font-family: 'Fredoka', sans-serif;
@@ -321,6 +319,15 @@ function renderGamesTab(container) {
                     <p class="text-slate-500 font-medium">Fly and catch the correct translation clouds!</p>
                 </div>
 
+                <!-- Helicopter -->
+                <div onclick="initGame('helicopter')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-orange-200 cursor-pointer hover:-translate-y-2 transition-transform group">
+                    <div class="bg-orange-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fa-solid fa-helicopter text-4xl text-orange-500 group-hover:text-white"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Helicopter</h3>
+                    <p class="text-slate-500 font-medium">Pick your study words, then fly and catch them!</p>
+                </div>
+
                 <!-- Crossy Road -->
                 <div onclick="initGame('crossy')" class="bg-white rounded-3xl p-6 shadow-xl border-b-8 border-green-200 cursor-pointer hover:-translate-y-2 transition-transform group">
                     <div class="bg-green-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
@@ -372,7 +379,7 @@ function renderGamesTab(container) {
 }
 
 function renderWordsTab(container) {
-    let wordListHTML = state.words.map(w => `
+    const renderItem = (w) => `
         <div class="flex items-center justify-between bg-slate-50 p-4 rounded-xl border-2 border-slate-100 mb-3 hover:border-blue-300 transition-colors">
             <div class="flex-1 grid grid-cols-2 gap-4">
                 <span class="font-bold text-lg text-slate-700">${w.es}</span>
@@ -386,7 +393,10 @@ function renderWordsTab(container) {
                 <button onclick="deleteWord(${w.id})" class="text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash"></i></button>
             </div>
         </div>
-    `).join('');
+    `;
+
+    const wordsOnly = state.words.filter(w => !w.es.includes(' ') && !w.en.includes(' '));
+    const phrasesOnly = state.words.filter(w => w.es.includes(' ') || w.en.includes(' '));
 
     const html = `
         <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl p-6 md:p-8">
@@ -399,16 +409,23 @@ function renderWordsTab(container) {
                 <div class="flex flex-col md:flex-row gap-4">
                     <input type="text" id="new-es" placeholder="Spanish (e.g. Manzana)" class="flex-1 px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none font-bold text-slate-700">
                     <input type="text" id="new-en" placeholder="English (e.g. Apple)" class="flex-1 px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none font-bold text-slate-700">
-                    <button onclick="addWord()" class="btn-cartoon btn-blue px-8 py-3 rounded-xl text-lg"><i class="fa-solid fa-plus mr-2"></i>Add</button>
+                    <button id="add-word-btn" onclick="validateAndAddWord()" class="btn-cartoon btn-blue px-8 py-3 rounded-xl text-lg flex items-center justify-center min-w-[120px]"><i class="fa-solid fa-plus mr-2"></i>Add</button>
                 </div>
             </div>
 
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-slate-700 text-xl">Your Words (${state.words.length})</h3>
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-slate-700 text-xl"><i class="fa-solid fa-comment-dots text-purple-500 mr-2"></i>Your Phrases (${phrasesOnly.length})</h3>
+            </div>
+            <div class="max-h-[25vh] overflow-y-auto pr-2 mb-8">
+                ${phrasesOnly.map(renderItem).join('') || '<p class="text-center text-slate-400 font-bold py-6 bg-slate-50 rounded-xl">No phrases added yet.</p>'}
+            </div>
+
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-slate-700 text-xl"><i class="fa-solid fa-font text-blue-500 mr-2"></i>Your Words (${wordsOnly.length})</h3>
             </div>
             
-            <div class="max-h-[50vh] overflow-y-auto pr-2">
-                ${wordListHTML || '<p class="text-center text-slate-400 font-bold py-8">No words added yet. Start building your dictionary!</p>'}
+            <div class="max-h-[25vh] overflow-y-auto pr-2">
+                ${wordsOnly.map(renderItem).join('') || '<p class="text-center text-slate-400 font-bold py-6 bg-slate-50 rounded-xl">No words added yet.</p>'}
             </div>
         </div>
     `;
@@ -548,7 +565,7 @@ function renderRewardsTab(container) {
 /* ==========================================
    CRUD FOR WORDS
    ========================================== */
-function addWord() {
+async function validateAndAddWord() {
     const esInput = document.getElementById('new-es');
     const enInput = document.getElementById('new-en');
     const es = esInput.value.trim();
@@ -556,6 +573,54 @@ function addWord() {
 
     if(!es || !en) {
         showToast("Please enter both Spanish and English!");
+        return;
+    }
+
+    // Local dictionary duplicate check
+    if(state.words.find(w => w.es.toLowerCase() === es.toLowerCase())) {
+        showToast("This Spanish word is already in your dictionary!");
+        return;
+    }
+    if(state.words.find(w => w.en.toLowerCase() === en.toLowerCase())) {
+        showToast("This English word is already in your dictionary!");
+        return;
+    }
+
+    const btn = document.getElementById('add-word-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    // Check real dictionary API (skip multi-word phrases to avoid blocking sentences)
+    const checkDictionary = async (word, lang) => {
+        if(word.split(' ').length > 1) return true; 
+        try {
+            // Use Wiktionary specifically for Spanish words to avoid 404 false negatives, 
+            // and dictionaryapi.dev for English.
+            let url = lang === 'es' ? 
+                `https://es.wiktionary.org/api/rest_v1/page/definition/${word.toLowerCase()}` : 
+                `https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`;
+            
+            let res = await fetch(url);
+            if(res.status === 404) return false;
+            return true;
+        } catch(e) {
+            return true; // Ignore if network is down
+        }
+    };
+
+    const esValid = await checkDictionary(es, 'es');
+    const enValid = await checkDictionary(en, 'en');
+
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+
+    if(!esValid) {
+        showToast(`'${es}' isn't in the Spanish dictionary!`);
+        return;
+    }
+    if(!enValid) {
+        showToast(`'${en}' isn't in the English dictionary!`);
         return;
     }
 
@@ -567,7 +632,7 @@ function addWord() {
     
     saveState();
     if(state.activeTab === 'words') switchTab('words');
-    showToast("Word added!");
+    showToast("Word added! 🎉");
 }
 
 function deleteWord(id) {
@@ -613,6 +678,11 @@ let currentGameMode = null;
 let currentSessionCoins = 0;
 let animationFrameId = null; // For canvas games
 
+// Helper to check if an item is a phrase
+function isPhrase(w) {
+    return w.es.includes(' ') || w.en.includes(' ');
+}
+
 // Helper to get words based on mode
 function getGameWords(mode, count) {
     let pool = [];
@@ -621,22 +691,38 @@ function getGameWords(mode, count) {
         return null;
     }
 
+    // Separate words and phrases so games don't mix them inappropriately in the same round
+    const wordsList = state.words.filter(w => !isPhrase(w));
+    const phrasesList = state.words.filter(w => isPhrase(w));
+
+    let sourceList = state.words; // Fallback if neither category is large enough alone
+    let validLists = [];
+    
+    // Only use a category if it has enough items to populate the game's options
+    if (wordsList.length >= count) validLists.push(wordsList);
+    if (phrasesList.length >= count) validLists.push(phrasesList);
+
+    if (validLists.length > 0) {
+        // Randomly choose to play a round of Words OR a round of Phrases
+        sourceList = validLists[Math.floor(Math.random() * validLists.length)];
+    }
+
     if(mode === 'active') {
         // 90% learning, 10% mastered logic via weighted drawing
-        let learning = state.words.filter(w => w.status === 'learning');
-        let mastered = state.words.filter(w => w.status === 'mastered');
+        let learning = sourceList.filter(w => w.status === 'learning');
+        let mastered = sourceList.filter(w => w.status === 'mastered');
         
-        while(pool.length < count && pool.length < state.words.length) {
+        while(pool.length < count && pool.length < sourceList.length) {
             let r = Math.random();
-            let sourceList = (r < 0.9 && learning.length > 0) ? learning : mastered;
-            if(sourceList.length === 0) sourceList = state.words; // Fallback
+            let targetList = (r < 0.9 && learning.length > 0) ? learning : mastered;
+            if(targetList.length === 0) targetList = sourceList; // Fallback
 
-            let word = sourceList[Math.floor(Math.random() * sourceList.length)];
+            let word = targetList[Math.floor(Math.random() * targetList.length)];
             if(!pool.find(w => w.id === word.id)) pool.push(word);
         }
     } else {
         // Random selection
-        let shuffled = [...state.words].sort(() => 0.5 - Math.random());
+        let shuffled = [...sourceList].sort(() => 0.5 - Math.random());
         pool = shuffled.slice(0, count);
     }
     return pool;
@@ -647,6 +733,19 @@ function recordAnswer(wordId, isCorrect) {
     if(word) {
         word.total++;
         if(isCorrect) word.correct++;
+        
+        // Suggestion System: Auto-update learning status after 15 tries
+        if(word.total >= 15) {
+            let winRate = Math.round((word.correct / word.total) * 100);
+            if(winRate >= 80 && word.status !== 'mastered') {
+                word.status = 'mastered';
+                showToast(`Level Up! '${word.es}' is now Mastered! 🎓`);
+            } else if(winRate < 80 && word.status !== 'learning') {
+                word.status = 'learning';
+                showToast(`Needs practice! '${word.es}' moved to Learning. 📚`);
+            }
+        }
+        
         saveState();
     }
 }
@@ -669,6 +768,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
             case 'climb': startClimbUpGame(container, false, args[0], args[1]); break;
             case 'typing': startTypingGame(container, false); break;
             case 'picture': startPictureGame(container, false); break;
+            // helicopter is also handled internally like airplane
         }
     } else {
         // Active Mode: Pick a new random game!
@@ -677,7 +777,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
             animationFrameId = null;
         }
         
-        const games = ['matching', 'test', 'building', 'airplane', 'crossy', 'climb', 'typing', 'picture'];
+        const games = ['matching', 'test', 'building', 'airplane', 'helicopter', 'crossy', 'climb', 'typing', 'picture'];
         
         // Prevent picking the exact same game twice in a row
         let nextMode = currentMode;
@@ -687,7 +787,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
         
         currentGameMode = nextMode;
         
-        const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
+        const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'helicopter': 'Heli Study', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
         document.getElementById('game-title').innerText = titles[nextMode] || 'Active Mode';
         
         container.style.background = '';
@@ -699,6 +799,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
             case 'test': startTestGame(container, true); break;
             case 'building': startBuildingGame(container, true); break;
             case 'airplane': startAirplaneGame(container, true); break;
+            case 'helicopter': startHelicopterGame(container, true); break;
             case 'crossy': startCrossyGame(container, true); break;
             case 'climb': startClimbUpGame(container, true); break; // Resets climb streak
             case 'typing': startTypingGame(container, true); break;
@@ -708,7 +809,7 @@ function triggerNextRound(container, isActiveMode, currentMode, ...args) {
 }
 
 function initGame(mode) {
-    const wordsRequired = { 'matching': 6, 'test': 4, 'building': 1, 'airplane': 4, 'crossy': 4, 'climb': 3, 'typing': 1, 'picture': 4, 'active': 4 };
+    const wordsRequired = { 'matching': 6, 'test': 4, 'building': 1, 'airplane': 4, 'helicopter': 4, 'crossy': 4, 'climb': 3, 'typing': 1, 'picture': 4, 'active': 4 };
     
     if(state.words.length < wordsRequired[mode === 'active' ? 'test' : mode]) {
         showToast(`You need at least ${wordsRequired[mode === 'active' ? 'test' : mode]} words to play this!`);
@@ -717,7 +818,7 @@ function initGame(mode) {
 
     let actualMode = mode;
     if(mode === 'active') {
-        const games = ['matching', 'test', 'building', 'airplane', 'crossy', 'climb', 'typing', 'picture'];
+        const games = ['matching', 'test', 'building', 'airplane', 'helicopter', 'crossy', 'climb', 'typing', 'picture'];
         actualMode = games[Math.floor(Math.random() * games.length)];
     }
 
@@ -725,7 +826,7 @@ function initGame(mode) {
     currentSessionCoins = 0;
     document.getElementById('game-session-coins').innerText = '0';
     
-    const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
+    const titles = { 'matching': 'Match Cards', 'test': 'Quiz Time', 'building': 'Word Builder', 'airplane': 'Flight School', 'helicopter': 'Heli Study', 'crossy': 'Crossy Word', 'climb': 'Climb Up', 'typing': 'Typing Fall', 'picture': 'Picture Answer' };
     document.getElementById('game-title').innerText = titles[actualMode] || 'Game';
     
     document.getElementById('game-overlay').classList.remove('hidden');
@@ -740,6 +841,7 @@ function initGame(mode) {
         case 'test': startTestGame(area, mode === 'active'); break;
         case 'building': startBuildingGame(area, mode === 'active'); break;
         case 'airplane': startAirplaneGame(area, mode === 'active'); break;
+        case 'helicopter': startHelicopterGame(area, mode === 'active'); break;
         case 'crossy': startCrossyGame(area, mode === 'active'); break;
         case 'climb': startClimbUpGame(area, mode === 'active'); break;
         case 'typing': startTypingGame(area, mode === 'active'); break;
@@ -1135,6 +1237,248 @@ function startAirplaneGame(container, isActiveMode) {
     });
 }
 
+// --- 4b. HELICOPTER GAME (Unit Study Version) ---
+function startHelicopterGame(container, isActiveMode, customWords = null) {
+    // If not active mode and user hasn't selected their study unit yet, show the word selector UI
+    if (!isActiveMode && !customWords) {
+        if (state.words.length < 4) {
+            showToast("You need at least 4 words in your dictionary!");
+            return quitGame();
+        }
+        
+        container.innerHTML = `
+            <div class="flex flex-col items-center w-full max-w-2xl p-6 h-full">
+                <h3 class="text-2xl font-bold text-slate-700 mb-4">Select at least 4 words to study:</h3>
+                <div class="flex-1 w-full overflow-y-auto bg-white border-2 border-slate-200 rounded-2xl p-4 mb-4 grid grid-cols-1 md:grid-cols-2 gap-3" id="heli-word-list">
+                    ${state.words.map(w => `
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-orange-50 border-2 border-transparent hover:border-orange-200 transition-colors">
+                            <input type="checkbox" value="${w.id}" class="heli-checkbox w-6 h-6 text-orange-500 rounded focus:ring-orange-500 cursor-pointer">
+                            <span class="font-bold text-slate-700">${w.es} <span class="text-slate-400 font-normal">(${w.en})</span></span>
+                        </label>
+                    `).join('')}
+                </div>
+                <button onclick="launchHelicopterFlight()" class="btn-cartoon btn-blue bg-orange-500 border-orange-700 w-full py-4 rounded-2xl text-xl">
+                    <i class="fa-solid fa-helicopter mr-2"></i> Start Flight
+                </button>
+            </div>
+        `;
+        
+        window.launchHelicopterFlight = () => {
+            const checkboxes = document.querySelectorAll('.heli-checkbox:checked');
+            if (checkboxes.length < 4) {
+                showToast("Please select at least 4 words!");
+                return;
+            }
+            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const selectedWords = state.words.filter(w => selectedIds.includes(w.id));
+            startHelicopterGame(container, false, selectedWords);
+        };
+        return; // Pause the game initialization here until the user clicks Start
+    }
+
+    // Actual gameplay logic starts here
+    let gameWords = customWords || getGameWords(isActiveMode ? 'active' : 'normal', 4);
+    if(!gameWords || gameWords.length < 4) return quitGame();
+
+    container.innerHTML = `
+        <div id="game-canvas-container" style="background: #e0f2fe;">
+            <div class="game-ui-overlay">
+                <div id="heli-target" class="bg-black/50 px-4 py-2 rounded-full text-white">Target: ...</div>
+            </div>
+            <canvas id="heliCanvas"></canvas>
+        </div>
+        <div class="absolute bottom-4 text-slate-500 font-bold">Use UP/DOWN arrows or click/tap to fly your Helicopter</div>
+    `;
+
+    const canvas = document.getElementById('heliCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const resizeCanvas = () => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let targetWord = null;
+    let wrongWords = [];
+
+    const resetLevel = () => {
+        let shuffled = [...gameWords].sort(() => 0.5 - Math.random());
+        targetWord = shuffled[0];
+        document.getElementById('heli-target').innerText = `Catch: ${targetWord.en}`;
+        wrongWords = shuffled.slice(1);
+        clouds = [];
+        spawnTimer = 0;
+    };
+
+    let heli = { x: 50, y: canvas.height/2, w: 70, h: 45, vY: 0, gravity: 0.15, lift: -4 };
+    let clouds = [];
+    let spawnTimer = 0;
+    let isGameOver = false;
+    let rotorAngle = 0;
+
+    // Controls
+    let flying = false;
+    const flyUp = () => { flying = true; };
+    const stopFly = () => { flying = false; };
+    
+    window.addEventListener('keydown', (e) => { if(e.key === 'ArrowUp' && currentGameMode === 'helicopter') flyUp(); });
+    window.addEventListener('keyup', (e) => { if(e.key === 'ArrowUp') stopFly(); });
+    canvas.addEventListener('mousedown', flyUp);
+    canvas.addEventListener('mouseup', stopFly);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); flyUp(); });
+    canvas.addEventListener('touchend', stopFly);
+
+    resetLevel();
+
+    function spawnCloud() {
+        let isCorrect = Math.random() < 0.4;
+        let text = isCorrect ? targetWord.es : wrongWords[Math.floor(Math.random() * wrongWords.length)].es;
+        
+        clouds.push({
+            x: canvas.width,
+            y: Math.random() * (canvas.height - 60) + 30,
+            w: ctx.measureText(text).width + 60,
+            h: 40,
+            text: text,
+            isCorrect: isCorrect,
+            speed: 2 + Math.random() * 2 // slightly slower than airplane
+        });
+    }
+
+    function drawHelicopter() {
+        // Main Body
+        ctx.fillStyle = '#f97316'; // orange-500
+        ctx.beginPath();
+        ctx.roundRect(heli.x, heli.y, heli.w, heli.h, 15);
+        ctx.fill();
+        
+        // Tail
+        ctx.fillStyle = '#ea580c'; // orange-600
+        ctx.fillRect(heli.x - 25, heli.y + 15, 30, 8);
+        
+        // Animated Tail Rotor
+        rotorAngle += 0.5;
+        ctx.save();
+        ctx.translate(heli.x - 25, heli.y + 19);
+        ctx.rotate(rotorAngle);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(-2, -10, 4, 20);
+        ctx.restore();
+
+        // Window
+        ctx.fillStyle = '#bae6fd';
+        ctx.beginPath();
+        ctx.arc(heli.x + 50, heli.y + 20, 12, 0, Math.PI*2);
+        ctx.fill();
+
+        // Top Rotor Shaft
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(heli.x + 30, heli.y - 10, 6, 10);
+
+        // Animated Top Rotor Blade
+        ctx.save();
+        ctx.translate(heli.x + 33, heli.y - 10);
+        ctx.rotate(rotorAngle * 0.5);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(-35, -2, 70, 4);
+        ctx.restore();
+        
+        // Landing gear
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(heli.x + 15, heli.y + heli.h, 4, 10);
+        ctx.fillRect(heli.x + 50, heli.y + heli.h, 4, 10);
+        ctx.fillRect(heli.x + 5, heli.y + heli.h + 8, 60, 4);
+    }
+
+    function gameLoop() {
+        if(currentGameMode !== 'helicopter') return;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if(isGameOver) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('CRASHED!', canvas.width/2, canvas.height/2);
+            return;
+        }
+
+        // Physics
+        if(flying) heli.vY = heli.lift;
+        heli.vY += heli.gravity;
+        heli.y += heli.vY;
+
+        // Bounds
+        if(heli.y < 20) heli.y = 20; // prevent top rotor from clipping
+        if(heli.y > canvas.height - heli.h - 15) heli.y = canvas.height - heli.h - 15;
+
+        drawHelicopter();
+
+        // Clouds
+        spawnTimer++;
+        if(spawnTimer > 120) {
+            spawnCloud();
+            spawnTimer = 0;
+        }
+
+        ctx.font = 'bold 20px Fredoka, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for(let i = clouds.length - 1; i >= 0; i--) {
+            let c = clouds[i];
+            c.x -= c.speed;
+
+            // Draw Cloud
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.roundRect(c.x, c.y, c.w, c.h, 20);
+            ctx.fill();
+            ctx.fillStyle = '#334155';
+            ctx.fillText(c.text, c.x + c.w/2, c.y + c.h/2);
+
+            // Collision AABB
+            if (heli.x < c.x + c.w && heli.x + heli.w > c.x &&
+                heli.y < c.y + c.h && heli.y + heli.h > c.y) {
+                
+                if(c.isCorrect) {
+                    recordAnswer(targetWord.id, true);
+                    addGameCoins(20);
+                    showToast("+20 Coins!");
+                    clouds.splice(i, 1);
+                    if (isActiveMode) {
+                        triggerNextRound(container, true, 'helicopter');
+                        return; 
+                    } else {
+                        resetLevel();
+                    }
+                } else {
+                    recordAnswer(targetWord.id, false);
+                    isGameOver = true;
+                    setTimeout(() => { 
+                        isGameOver = false; 
+                        if (isActiveMode) triggerNextRound(container, true, 'helicopter');
+                        else { resetLevel(); heli.y = canvas.height/2; }
+                    }, 1500);
+                }
+            } else if (c.x + c.w < 0) {
+                clouds.splice(i, 1);
+            }
+        }
+
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    document.fonts.ready.then(() => {
+        gameLoop();
+    });
+}
+
 // --- 5. CROSSY ROAD GAME (Canvas) ---
 function startCrossyGame(container, isActiveMode) {
     container.innerHTML = `
@@ -1491,9 +1835,10 @@ function startPictureGame(container, isActiveMode) {
     const targetWord = words[0];
     const options = words.sort(() => 0.5 - Math.random());
     
-    // Pulls a real photograph from Flickr based on the English word, adding a random lock to prevent repeats
-    const randomId = Math.floor(Math.random() * 100000);
-    const imageUrl = `https://loremflickr.com/400/300/${encodeURIComponent(targetWord.en)}?lock=${randomId}`;
+    // Prompt for simplistic, clean AI generation based on the English word
+    const promptString = `Simplistic 2D flat vector cartoon of ${targetWord.en}, white background, no text, clean outline`;
+    const randomSeed = Math.floor(Math.random() * 9999); // Ensures fresh generation
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptString)}?width=400&height=300&nologo=true&seed=${randomSeed}`;
 
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center w-full max-w-xl p-8">
